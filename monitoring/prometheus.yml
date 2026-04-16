@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'oracle_agents'
+    static_configs:
+      - targets:
+          - 'agent_1:9090'
+          - 'agent_2:9091'
+          - 'agent_3:9092'
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '([^:]+):.*'
+        target_label: agent
+        replacement: '$1'

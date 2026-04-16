@@ -1,0 +1,12 @@
+{
+  "name": "cross-chain-oracle-agent",
+  "version": "1.0.0",
+  "description": "Byzantine fault-tolerant cross-chain oracle swarm (Ethereum · Sui · Solana)",
+  "private": true,
+  "scripts": {
+    "dev": "venv/bin/python3 agent.py --agent-id dev_node --port 4001 --dashboard-port 8080 --metrics-port 9090 --log-format pretty --log-level DEBUG",
+    "start": "venv/bin/python3 agent.py --agent-id agent_1 --port 4001 --dashboard-port 8080 --metrics-port 9090 --log-format json",
+    "swarm": "venv/bin/python3 run_3_agents.py",
+    "install:py": "pip install -r requirements.txt"
+  }
+}

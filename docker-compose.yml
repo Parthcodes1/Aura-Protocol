@@ -1,0 +1,223 @@
+# Cross-Chain Oracle Agent Network — 10-node swarm
+# All agents bootstrap from agent_1 (the first node)
+# Agents 1-3: ETH + SUI + SOL    (full watchers)
+# Agents 4-6: ETH + SUI only
+# Agents 7-8: SUI + SOL only
+# Agents 9-10: Consensus-only    (no chain watchers, just P2P/Raft)
+
+x-agent-base: &agent-base
+  build: .
+  restart: unless-stopped
+  environment:
+    MIN_CONSENSUS_PEERS:  "6"
+    CONSENSUS_THRESHOLD:  "0.67"
+    LOG_LEVEL:   "INFO"
+    LOG_FORMAT:  "json"
+    ETH_RPC_URL: "${ETH_RPC_URL:-https://ethereum.publicnode.com}"
+    SUI_RPC_URL: "${SUI_RPC_URL:-https://fullnode.mainnet.sui.io:443}"
+    SOL_RPC_URL: "${SOL_RPC_URL:-https://api.mainnet-beta.solana.com}"
+  volumes:
+    - ./data:/app/data
+  networks:
+    - oracle-net
+
+services:
+
+  # ── Seed node (no bootstrap needed) ────────────────────────────────────────
+  agent_1:
+    <<: *agent-base
+    container_name: oracle-agent-1
+    ports:
+      - "4001:4001"
+      - "8080:8080"
+      - "9090:9090"
+    command:
+      - "--agent-id=agent_1"
+      - "--port=4001"
+      - "--chain=ethereum"
+      - "--chain=sui"
+      - "--chain=solana"
+      - "--dashboard-port=8080"
+      - "--metrics-port=9090"
+      - "--log-format=json"
+
+  # ── Full-watcher nodes (ETH + SUI + SOL) ───────────────────────────────────
+  agent_2:
+    <<: *agent-base
+    container_name: oracle-agent-2
+    depends_on: [agent_1]
+    ports:
+      - "4002:4002"
+      - "8081:8081"
+      - "9091:9091"
+    command:
+      - "--agent-id=agent_2"
+      - "--port=4002"
+      - "--bootstrap=/ip4/agent_1/tcp/4001"
+      - "--chain=ethereum"
+      - "--chain=sui"
+      - "--chain=solana"
+      - "--dashboard-port=8081"
+      - "--metrics-port=9091"
+      - "--log-format=json"
+
+  agent_3:
+    <<: *agent-base
+    container_name: oracle-agent-3
+    depends_on: [agent_1]
+    ports:
+      - "4003:4003"
+      - "8082:8082"
+      - "9092:9092"
+    command:
+      - "--agent-id=agent_3"
+      - "--port=4003"
+      - "--bootstrap=/ip4/agent_1/tcp/4001"
+      - "--chain=ethereum"
+      - "--chain=sui"
+      - "--chain=solana"
+      - "--dashboard-port=8082"
+      - "--metrics-port=9092"
+      - "--log-format=json"
+
+  # ── ETH + SUI nodes ─────────────────────────────────────────────────────────
+  agent_4:
+    <<: *agent-base
+    container_name: oracle-agent-4
+    depends_on: [agent_1]
+    ports:
+      - "4004:4004"
+      - "8083:8083"
+      - "9093:9093"
+    command:
+      - "--agent-id=agent_4"
+      - "--port=4004"
+      - "--bootstrap=/ip4/agent_1/tcp/4001"
+      - "--chain=ethereum"
+      - "--chain=sui"
+      - "--dashboard-port=8083"
+      - "--metrics-port=9093"
+      - "--log-format=json"
+
+  agent_5:
+    <<: *agent-base
+    container_name: oracle-agent-5
+    depends_on: [agent_1]
+    ports:
+      - "4005:4005"
+      - "8084:8084"
+      - "9094:9094"
+    command:
+      - "--agent-id=agent_5"
+      - "--port=4005"
+      - "--bootstrap=/ip4/agent_1/tcp/4001"
+      - "--chain=ethereum"
+      - "--chain=sui"
+      - "--dashboard-port=8084"
+      - "--metrics-port=9094"
+      - "--log-format=json"
+
+  agent_6:
+    <<: *agent-base
+    container_name: oracle-agent-6
+    depends_on: [agent_1]
+    ports:
+      - "4006:4006"
+      - "8085:8085"
+      - "9095:9095"
+    command:
+      - "--agent-id=agent_6"
+      - "--port=4006"
+      - "--bootstrap=/ip4/agent_1/tcp/4001"
+      - "--chain=ethereum"
+      - "--chain=sui"
+      - "--dashboard-port=8085"
+      - "--metrics-port=9095"
+      - "--log-format=json"
+
+  # ── SUI + SOL nodes ──────────────────────────────────────────────────────────
+  agent_7:
+    <<: *agent-base
+    container_name: oracle-agent-7
+    depends_on: [agent_1]
+    ports:
+      - "4007:4007"
+      - "8086:8086"
+      - "9096:9096"
+    command:
+      - "--agent-id=agent_7"
+      - "--port=4007"
+      - "--bootstrap=/ip4/agent_1/tcp/4001"
+      - "--chain=sui"
+      - "--chain=solana"
+      - "--dashboard-port=8086"
+      - "--metrics-port=9096"
+      - "--log-format=json"
+
+  agent_8:
+    <<: *agent-base
+    container_name: oracle-agent-8
+    depends_on: [agent_1]
+    ports:
+      - "4008:4008"
+      - "8087:8087"
+      - "9097:9097"
+    command:
+      - "--agent-id=agent_8"
+      - "--port=4008"
+      - "--bootstrap=/ip4/agent_1/tcp/4001"
+      - "--chain=sui"
+      - "--chain=solana"
+      - "--dashboard-port=8087"
+      - "--metrics-port=9097"
+      - "--log-format=json"
+
+  # ── Consensus-only nodes (P2P + Raft, no chain watchers) ────────────────────
+  agent_9:
+    <<: *agent-base
+    container_name: oracle-agent-9
+    depends_on: [agent_1]
+    ports:
+      - "4009:4009"
+      - "8088:8088"
+      - "9098:9098"
+    command:
+      - "--agent-id=agent_9"
+      - "--port=4009"
+      - "--bootstrap=/ip4/agent_1/tcp/4001"
+      - "--dashboard-port=8088"
+      - "--metrics-port=9098"
+      - "--log-format=json"
+
+  agent_10:
+    <<: *agent-base
+    container_name: oracle-agent-10
+    depends_on: [agent_1]
+    ports:
+      - "4010:4010"
+      - "8089:8089"
+      - "9099:9099"
+    command:
+      - "--agent-id=agent_10"
+      - "--port=4010"
+      - "--bootstrap=/ip4/agent_1/tcp/4001"
+      - "--dashboard-port=8089"
+      - "--metrics-port=9099"
+      - "--log-format=json"
+
+  # ── Prometheus (optional — run with: docker compose --profile monitoring up) ─
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: oracle-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9100:9090"
+    networks:
+      - oracle-net
+    profiles:
+      - monitoring
+
+networks:
+  oracle-net:
+    driver: bridge

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cross-Chain Oracle Network</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">⛓ Cross-Chain Oracle Network</div>
+    <div class="nav-right">
+      <span id="agent-id" class="badge badge-blue">—</span>
+      <span id="conn-status" class="badge badge-red">Disconnected</span>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <!-- ── Swarm Overview ─────────────────────────────────────────── -->
+    <div class="section-title">Swarm State</div>
+    <div class="cards-row">
+      <div class="card">
+        <div class="card-label">Leader</div>
+        <div id="s-leader" class="card-value mono">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Epoch / Term</div>
+        <div id="s-epoch" class="card-value">— / —</div>
+      </div>
+      <div class="card">
+        <div class="card-label">State Version</div>
+        <div id="s-version" class="card-value">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Active Peers</div>
+        <div id="s-peers" class="card-value">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">My Role</div>
+        <div id="s-role" class="card-value">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">State Hash</div>
+        <div id="s-hash" class="card-value mono small">—</div>
+      </div>
+    </div>
+
+    <!-- ── Chain States ───────────────────────────────────────────── -->
+    <div class="section-title">Cross-Chain Oracle State</div>
+    <div class="cards-row">
+      <div class="chain-card" id="card-ethereum">
+        <div class="chain-icon">Ξ</div>
+        <div class="chain-name">Ethereum</div>
+        <div class="chain-block" id="eth-block">Block —</div>
+        <div class="chain-hash mono" id="eth-hash">—</div>
+        <div class="chain-status" id="eth-status"><span class="dot dot-gray"></span> —</div>
+        <div class="chain-events" id="eth-events">0 events</div>
+      </div>
+      <div class="chain-card" id="card-sui">
+        <div class="chain-icon">🌊</div>
+        <div class="chain-name">Sui</div>
+        <div class="chain-block" id="sui-block">Checkpoint —</div>
+        <div class="chain-hash mono" id="sui-hash">—</div>
+        <div class="chain-status" id="sui-status"><span class="dot dot-gray"></span> —</div>
+        <div class="chain-events" id="sui-events">0 events</div>
+      </div>
+      <div class="chain-card" id="card-solana">
+        <div class="chain-icon">◎</div>
+        <div class="chain-name">Solana</div>
+        <div class="chain-block" id="sol-block">Slot —</div>
+        <div class="chain-hash mono" id="sol-hash">—</div>
+        <div class="chain-status" id="sol-status"><span class="dot dot-gray"></span> —</div>
+        <div class="chain-events" id="sol-events">0 events</div>
+      </div>
+    </div>
+
+    <!-- ── Network Graph ──────────────────────────────────────────── -->
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Network Graph</div>
+        <svg id="network-graph" width="100%" height="340"></svg>
+      </div>
+
+      <!-- ── Peer Table ────────────────────────────────────────────── -->
+      <div class="panel">
+        <div class="panel-title">Peers</div>
+        <table class="table" id="peers-table">
+          <thead>
+            <tr>
+              <th>Agent</th><th>Role</th><th>Score</th><th>Age</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="peers-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Aggregate Hash ─────────────────────────────────────────── -->
+    <div class="section-title">Cross-Chain Aggregate Hash</div>
+    <div class="hash-display">
+      <div class="hash-label">SHA-256 Aggregate</div>
+      <div id="agg-hash" class="hash-value mono">—</div>
+      <div id="agg-updated" class="hash-ts">—</div>
+    </div>
+
+    <!-- ── Event Feed ─────────────────────────────────────────────── -->
+    <div class="section-title">Live Event Feed</div>
+    <div id="event-feed" class="event-feed"></div>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
