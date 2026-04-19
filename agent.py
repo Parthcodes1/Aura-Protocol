@@ -476,6 +476,12 @@ class CrossChainOracleAgent:
 @click.option("--chain",      multiple=True,  help="Chains to watch: ethereum, sui, solana")
 @click.option("--eth-rpc",    default=None,   envvar="ETH_RPC_URL",  help="Ethereum RPC URL")
 @click.option("--sui-rpc",    default=None,   envvar="SUI_RPC_URL",  help="Sui RPC URL")
+@click.option("--sui-network", default=None,   envvar="SUI_NETWORK",
+              type=click.Choice(["devnet", "testnet", "mainnet"], case_sensitive=False),
+              help="Preset Sui network to use when no explicit RPC URL is provided")
+@click.option("--sui-max-checkpoint-txs", default=None, type=int,
+              envvar="SUI_MAX_CHECKPOINT_TXS",
+              help="Max Sui transactions to scan per checkpoint (0 scans all)")
 @click.option("--sol-rpc",    default=None,   envvar="SOL_RPC_URL",  help="Solana RPC URL")
 @click.option("--bootstrap",  default=None,   multiple=True, help="Bootstrap peer multiaddr")
 @click.option("--dashboard-port", default=8080, type=int,  help="Dashboard HTTP port")
@@ -485,7 +491,7 @@ class CrossChainOracleAgent:
               help="Log output format")
 @click.option("--data-dir",   default="./data", help="Data directory for keys/state")
 def main(
-    agent_id, port, config, chain, eth_rpc, sui_rpc, sol_rpc,
+    agent_id, port, config, chain, eth_rpc, sui_rpc, sui_network, sui_max_checkpoint_txs, sol_rpc,
     bootstrap, dashboard_port, metrics_port, log_level, log_format, data_dir,
 ):
     """Cross-chain oracle agent — decentralized multi-chain state sync."""
@@ -509,9 +515,18 @@ def main(
     if "ethereum" in chains or eth_rpc:
         cfg.ethereum.enabled = True
         if eth_rpc: cfg.ethereum.rpc_url = eth_rpc
-    if "sui" in chains or sui_rpc:
+    if sui_network:
+        cfg.sui.network = sui_network.lower()
+    if sui_max_checkpoint_txs is not None:
+        cfg.sui.max_checkpoint_transactions = sui_max_checkpoint_txs
+    if "sui" in chains or sui_rpc or sui_network:
         cfg.sui.enabled = True
-        if sui_rpc: cfg.sui.rpc_url = sui_rpc
+        if sui_rpc:
+            cfg.sui.rpc_url = sui_rpc
+        else:
+            from config import resolve_sui_rpc_url
+
+            cfg.sui.rpc_url = resolve_sui_rpc_url(cfg.sui.network)
     if "solana" in chains or sol_rpc:
         cfg.solana.enabled = True
         if sol_rpc: cfg.solana.rpc_url = sol_rpc

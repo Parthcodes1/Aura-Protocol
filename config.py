@@ -15,6 +15,17 @@ from pydantic import BaseModel, Field
 load_dotenv()
 
 
+SUI_RPC_ENDPOINTS = {
+    "devnet": "https://fullnode.devnet.sui.io:443",
+    "testnet": "https://fullnode.testnet.sui.io:443",
+    "mainnet": "https://fullnode.mainnet.sui.io:443",
+}
+
+
+def resolve_sui_rpc_url(network: str) -> str:
+    return SUI_RPC_ENDPOINTS.get((network or "devnet").strip().lower(), SUI_RPC_ENDPOINTS["devnet"])
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Sub-configs
 # ─────────────────────────────────────────────────────────────────────────────
@@ -45,12 +56,14 @@ class EthereumConfig(BaseModel):
 
 class SuiConfig(BaseModel):
     enabled: bool = False
-    rpc_url: str = "https://fullnode.mainnet.sui.io:443"
+    network: str = "devnet"
+    rpc_url: str = "https://fullnode.devnet.sui.io:443"
     poll_interval: float = 3.0
     package_ids: List[str] = []
     event_filters: List[Dict[str, Any]] = []
     request_timeout: float = 10.0
     max_retries: int = 3
+    max_checkpoint_transactions: int = 0
 
 
 class SolanaConfig(BaseModel):
@@ -164,11 +177,25 @@ def load_config(agent_id: str, config_path: Optional[str] = None) -> AgentConfig
         eth["enabled"] = True
 
     sui = data.setdefault("sui", {})
+    if os.getenv("SUI_NETWORK"):
+        sui["network"] = os.environ["SUI_NETWORK"].strip().lower()
     if os.getenv("SUI_RPC_URL"):
         sui["rpc_url"] = os.environ["SUI_RPC_URL"]
         sui["enabled"] = True
+    elif sui.get("network"):
+        sui["rpc_url"] = resolve_sui_rpc_url(str(sui.get("network")))
     if os.getenv("SUI_POLL_INTERVAL"):
         sui["poll_interval"] = float(os.environ["SUI_POLL_INTERVAL"])
+    if os.getenv("SUI_MAX_CHECKPOINT_TXS"):
+        sui["max_checkpoint_transactions"] = int(os.environ["SUI_MAX_CHECKPOINT_TXS"])
+    if os.getenv("SUI_PACKAGE_IDS"):
+        sui["package_ids"] = [
+            item.strip() for item in os.environ["SUI_PACKAGE_IDS"].split(",") if item.strip()
+        ]
+    if os.getenv("SUI_EVENT_FILTERS"):
+        import json
+
+        sui["event_filters"] = json.loads(os.environ["SUI_EVENT_FILTERS"])
     if os.getenv("SUI_ENABLED", "").lower() == "true":
         sui["enabled"] = True
 

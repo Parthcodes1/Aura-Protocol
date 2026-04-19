@@ -83,6 +83,7 @@ class BaseChainWatcher(ABC):
         self.chain_name = chain_name
         self.poll_interval = poll_interval
         self.max_retries = max_retries
+        self.max_catch_up_blocks = 25
 
         self._last_block: Optional[int] = None
         self._running = False
@@ -140,11 +141,15 @@ class BaseChainWatcher(ABC):
     async def _poll_loop(self) -> None:
         while self._running:
             try:
-                t0 = time.monotonic()
-                block = await self._fetch_with_retry()
-                latency = (time.monotonic() - t0) * 1000
+                processed = 0
+                while self._running and processed < self.max_catch_up_blocks:
+                    t0 = time.monotonic()
+                    block = await self._fetch_with_retry()
+                    latency = (time.monotonic() - t0) * 1000
 
-                if block and block.block_number != self._last_block:
+                    if not block or block.block_number == self._last_block:
+                        break
+
                     self._last_block = block.block_number
                     self._fetch_count += 1
                     self._error_count = 0
@@ -172,6 +177,15 @@ class BaseChainWatcher(ABC):
                             await cb(block)
                         except Exception as exc:
                             log.error("chain.callback_error", chain=self.chain_name, error=str(exc))
+
+                    processed += 1
+
+                if processed >= self.max_catch_up_blocks:
+                    log.debug(
+                        "chain.catch_up_limited",
+                        chain=self.chain_name,
+                        limit=self.max_catch_up_blocks,
+                    )
 
             except asyncio.CancelledError:
                 break

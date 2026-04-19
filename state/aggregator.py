@@ -109,9 +109,18 @@ class CrossChainAggregator:
         chain = verified_state.chain
 
         async with self._lock:
-            old_block = self._state.chains.get(chain, {}).get("block_number", 0)
+            current = self._state.chains.get(chain, {})
+            old_block = current.get("block_number", 0)
+            old_timestamp = current.get("block_timestamp", 0)
             if verified_state.block_number <= old_block:
-                return  # already have a newer state for this chain
+                if verified_state.block_timestamp <= old_timestamp:
+                    return  # already have a newer state for this chain
+                log.warning(
+                    "aggregator.chain_height_reset",
+                    chain=chain,
+                    old_block=old_block,
+                    new_block=verified_state.block_number,
+                )
 
             self._state.update_chain(chain, verified_state)
 

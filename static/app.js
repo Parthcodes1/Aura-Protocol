@@ -40,8 +40,10 @@ function connectWS() {
 
 function setStatus(connected) {
   const el = document.getElementById("conn-status");
-  el.textContent = connected ? "Live" : "Disconnected";
-  el.className   = "badge " + (connected ? "badge-green" : "badge-red");
+  el.innerHTML = connected
+    ? `<span class="status-dot"></span> Live`
+    : `<span class="status-dot"></span> Disconnected`;
+  el.className = "badge " + (connected ? "badge-green badge-live live" : "badge badge-red badge-live offline");
 }
 
 // ── Main update handler ────────────────────────────────────────────────────
@@ -60,6 +62,9 @@ function handleStateUpdate(msg) {
   const role = msg.raft?.role || "—";
   document.getElementById("s-role").innerHTML = rolePill(role);
   setText("s-hash",    shortHash(sw.state_hash));
+
+  const leaderCard = document.getElementById("s-leader")?.closest(".card");
+  if (leaderCard) leaderCard.classList.toggle("leader-card", !!sw.leader && sw.leader !== "—");
 
   // ── Chain cards ────────────────────────────────────────────────────────
   const chains = msg.chains?.chains || {};
@@ -88,21 +93,25 @@ function updateChainCard(chain, prefix, blockLabel, data) {
     setText(`${prefix}-events`, "0 events");
     document.getElementById(`${prefix}-status`).innerHTML = dotStatus(false);
     card.classList.remove("verified");
+    card.classList.remove("alert");
     return;
   }
   setText(`${prefix}-block`,  `${blockLabel} ${fmtNum(data.block_number)}`);
   setText(`${prefix}-hash`,   shortHash(data.state_hash || data.block_hash));
-  setText(`${prefix}-events`, `${data.events_count ?? 0} events`);
+  const eventCount = data.events_count ?? 0;
+  setText(`${prefix}-events`, `${eventCount} events`);
   const verified = !!data.verified;
   document.getElementById(`${prefix}-status`).innerHTML = dotStatus(verified);
-  if (verified) card.classList.add("verified");
-  else          card.classList.remove("verified");
+  card.classList.toggle("verified", verified);
+
+  const needsAlert = chain === "sui" && eventCount === 0;
+  card.classList.toggle("alert", needsAlert);
 }
 
 function dotStatus(verified) {
   return verified
-    ? `<span class="dot dot-green"></span> Verified`
-    : `<span class="dot dot-yellow"></span> Pending`;
+    ? `<span class="dot dot-green ping"></span> Verified`
+    : `<span class="dot dot-yellow ping"></span> Pending`;
 }
 
 function updatePeersTable(peers) {
@@ -150,6 +159,14 @@ function initGraph() {
   svg.attr("viewBox", `0 0 ${W} ${H}`);
   svgSel = svg;
 
+  const defs = svg.append("defs");
+  const glow = defs.append("filter").attr("id", "node-glow").attr("x", "-60%").attr("y", "-60%").attr("width", "220%").attr("height", "220%");
+  glow.append("feGaussianBlur").attr("stdDeviation", 4).attr("result", "blur");
+  glow.append("feColorMatrix").attr("in", "blur").attr("type", "matrix").attr("values", "1 0 0 0 0  0 1 0 0 0.02  0 0 1 0 0.15  0 0 0 1 0").attr("result", "glow");
+  const merge = glow.append("feMerge");
+  merge.append("feMergeNode").attr("in", "glow");
+  merge.append("feMergeNode").attr("in", "SourceGraphic");
+
   simulation = d3.forceSimulation()
     .force("link",   d3.forceLink().id(d => d.id).distance(90))
     .force("charge", d3.forceManyBody().strength(-160))
@@ -189,22 +206,28 @@ function updateGraph(myId, peers, leader) {
   const link = svg.selectAll(".link")
     .data(links, d => `${d.source}-${d.target}`)
     .join("line")
-    .attr("class", "link active");
+    .attr("class", "link active")
+    .attr("stroke-dasharray", "10 12");
 
   // Render nodes
   const node = svg.selectAll(".node")
     .data(nodes, d => d.id)
     .join(enter => {
       const g = enter.append("g").attr("class", "node");
-      g.append("circle");
-      g.append("text").attr("dy", 22).attr("text-anchor", "middle");
+      g.append("polygon");
+      g.append("text").attr("class", "node-label").attr("dy", 28).attr("text-anchor", "middle");
       return g;
     });
 
-  node.select("circle")
-    .attr("r", d => d.isMe ? 18 : d.isLeader ? 16 : 12)
-    .attr("fill", d => d.isMe ? "#1c3a5e" : d.isLeader ? "#2a1f0a" : "#1f2937")
-    .attr("stroke", d => d.isMe ? "#58a6ff" : d.isLeader ? "#f79137" : "#30363d");
+  node
+    .classed("is-me", d => d.isMe)
+    .classed("is-leader", d => d.isLeader)
+    .attr("filter", d => d.isMe ? "url(#node-glow)" : null);
+
+  node.select("polygon")
+    .attr("points", d => hexPoints(d.isMe ? 18 : d.isLeader ? 16 : 12))
+    .attr("fill", d => d.isMe ? "#0f4c64" : d.isLeader ? "#5a4211" : "#111827")
+    .attr("stroke", d => d.isMe ? "#00f2ff" : d.isLeader ? "#ffb800" : "#8ea2ba");
 
   node.select("text")
     .text(d => (d.id || "").slice(-6));
@@ -235,6 +258,15 @@ function shortId(id) {
 function shortHash(h) {
   if (!h || h === "—") return "—";
   return h.slice(0, 12) + "…" + h.slice(-6);
+}
+
+function hexPoints(r) {
+  const points = [];
+  for (let i = 0; i < 6; i += 1) {
+    const angle = (Math.PI / 3) * i + Math.PI / 6;
+    points.push(`${Math.cos(angle) * r},${Math.sin(angle) * r}`);
+  }
+  return points.join(" ");
 }
 
 function rolePill(r) {

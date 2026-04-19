@@ -72,6 +72,12 @@ class SuiWatcher(BaseChainWatcher):
         self._rpc: Optional[SuiRpcClient] = None
         self._package_ids = config.package_ids or []
 
+    def _active_package_ids(self, contract_addresses: Optional[List[str]] = None) -> List[str]:
+        packages = list(self._package_ids)
+        if contract_addresses:
+            packages.extend(contract_addresses)
+        return list(dict.fromkeys(packages))
+
     # ── Connection ────────────────────────────────────────────────────────────
 
     async def connect(self) -> None:
@@ -138,42 +144,114 @@ class SuiWatcher(BaseChainWatcher):
         contract_addresses: Optional[List[str]] = None,
     ) -> List[NormalizedEvent]:
         events = []
+        packages = self._active_package_ids(contract_addresses)
         for seq in range(from_block, to_block + 1):
             try:
                 cp = await self._rpc.call("sui_getCheckpoint", [str(seq)])
                 if cp:
-                    events.extend(await self._fetch_checkpoint_events(cp))
+                    events.extend(await self._fetch_checkpoint_events(cp, packages))
             except Exception as exc:
                 log.warning("sui.fetch_events_failed", seq=seq, error=str(exc))
         return events
 
-    async def _fetch_checkpoint_events(self, checkpoint: Dict[str, Any]) -> List[NormalizedEvent]:
+    async def _fetch_checkpoint_events(
+        self,
+        checkpoint: Dict[str, Any],
+        package_ids: Optional[List[str]] = None,
+    ) -> List[NormalizedEvent]:
         """Fetch events for all transactions in a checkpoint."""
         events = []
-        tx_digests: List[str] = (checkpoint.get("transactions") or [])[:50]
+        tx_digests: List[str] = list(checkpoint.get("transactions") or [])
+        max_txs = int(getattr(self._config, "max_checkpoint_transactions", 0) or 0)
+        if max_txs > 0:
+            tx_digests = tx_digests[:max_txs]
+
+        if len(tx_digests) != len(checkpoint.get("transactions") or []):
+            log.info(
+                "sui.checkpoint_tx_scan_limited",
+                checkpoint=checkpoint.get("sequenceNumber"),
+                scanned=len(tx_digests),
+                total=len(checkpoint.get("transactions") or []),
+            )
 
         for tx_digest in tx_digests:
             try:
-                tx_events = await self._rpc.call(
-                    "suix_getTransactionBlock",
-                    [
-                        tx_digest,
-                        {
-                            "showInput":   False,
-                            "showEffects": False,
-                            "showEvents":  True,
-                        },
-                    ],
-                )
-                if tx_events and "events" in tx_events:
-                    for raw_evt in (tx_events["events"] or []):
-                        norm = self._normalize_event(tx_digest, raw_evt, checkpoint)
-                        if norm:
-                            events.append(norm)
+                raw_events = await self._fetch_tx_events(tx_digest)
+                for raw_evt in raw_events:
+                    if package_ids and raw_evt.get("packageId") not in package_ids:
+                        continue
+                    norm = self._normalize_event(tx_digest, raw_evt, checkpoint)
+                    if norm:
+                        events.append(norm)
             except Exception as exc:
                 log.debug("sui.tx_events_failed", tx=tx_digest[:12], error=str(exc))
 
+        if not events:
+            log.info(
+                "sui.checkpoint_no_events",
+                checkpoint=checkpoint.get("sequenceNumber"),
+                txs=len(tx_digests),
+                packages=package_ids or [],
+            )
+
         return events
+
+    async def _fetch_tx_events(self, tx_digest: str) -> List[Dict[str, Any]]:
+        """Fetch raw events for a single transaction with RPC fallbacks."""
+        fallbacks = [
+            (
+                "suix_getTransactionBlock",
+                [
+                    tx_digest,
+                    {
+                        "showInput":   False,
+                        "showEffects": False,
+                        "showEvents":  True,
+                    },
+                ],
+            ),
+            (
+                "sui_getTransactionBlock",
+                [
+                    tx_digest,
+                    {
+                        "showInput":   False,
+                        "showEffects": False,
+                        "showEvents":  True,
+                    },
+                ],
+            ),
+        ]
+
+        last_error: Optional[Exception] = None
+        for method, params in fallbacks:
+            try:
+                result = await self._rpc.call(method, params)
+                if result and "events" in result:
+                    return result.get("events") or []
+            except Exception as exc:
+                last_error = exc
+
+        if self._package_ids:
+            try:
+                query_result = await self._rpc.call(
+                    "suix_queryEvents",
+                    [
+                        {"MoveModule": {"package": self._package_ids[0], "module": "state_anchor"}},
+                        None,
+                        100,
+                        False,
+                    ],
+                )
+                data = (query_result or {}).get("data", [])
+                if data:
+                    return data
+            except Exception as exc:
+                last_error = exc
+
+        if last_error:
+            log.debug("sui.tx_events_fallback_failed", tx=tx_digest[:12], error=str(last_error))
+        return []
 
     def _normalize_event(
         self,

@@ -154,7 +154,7 @@ class StateStore:
         async with self._db.execute(
             """SELECT * FROM chain_state
                WHERE chain = ? AND verified = 1
-               ORDER BY block_number DESC LIMIT 1""",
+               ORDER BY saved_at DESC, id DESC LIMIT 1""",
             (chain,),
         ) as cur:
             row = await cur.fetchone()

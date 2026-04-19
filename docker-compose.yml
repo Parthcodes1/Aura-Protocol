@@ -14,7 +14,9 @@ x-agent-base: &agent-base
     LOG_LEVEL:   "INFO"
     LOG_FORMAT:  "json"
     ETH_RPC_URL: "${ETH_RPC_URL:-https://ethereum.publicnode.com}"
-    SUI_RPC_URL: "${SUI_RPC_URL:-https://fullnode.mainnet.sui.io:443}"
+    SUI_NETWORK: "${SUI_NETWORK:-devnet}"
+    SUI_RPC_URL: "${SUI_RPC_URL:-}"
+    SUI_MAX_CHECKPOINT_TXS: "${SUI_MAX_CHECKPOINT_TXS:-0}"
     SOL_RPC_URL: "${SOL_RPC_URL:-https://api.mainnet-beta.solana.com}"
   volumes:
     - ./data:/app/data
@@ -30,6 +32,7 @@ services:
     ports:
       - "4001:4001"
       - "8080:8080"
+      - "3000:8080"
       - "9090:9090"
     command:
       - "--agent-id=agent_1"

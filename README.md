@@ -144,13 +144,13 @@ The dashboard at http://localhost:8080 shows:
 
 ## Using Your Own RPC Endpoints (Recommended)
 
-The default public RPCs (`ethereum.publicnode.com`, `fullnode.mainnet.sui.io`, `api.mainnet-beta.solana.com`) have rate limits. For reliable operation, use private endpoints:
+The default public RPCs (`ethereum.publicnode.com`, `fullnode.devnet.sui.io`, `api.mainnet-beta.solana.com`) have rate limits. For reliable operation, use private endpoints:
 
 **Option A — Environment variables before `docker compose up`:**
 
 ```bash
 export ETH_RPC_URL="https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
-export SUI_RPC_URL="https://fullnode.mainnet.sui.io:443"
+export SUI_RPC_URL="https://fullnode.devnet.sui.io:443"
 export SOL_RPC_URL="https://solana-mainnet.g.alchemy.com/v2/YOUR_KEY"
 docker compose up -d
 ```
@@ -161,11 +161,22 @@ docker compose up -d
 x-agent-base: &agent-base
   environment:
     ETH_RPC_URL: "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
-    SUI_RPC_URL: "https://fullnode.mainnet.sui.io:443"
+    SUI_RPC_URL: "https://fullnode.devnet.sui.io:443"
     SOL_RPC_URL: "https://solana-mainnet.g.alchemy.com/v2/YOUR_KEY"
 ```
 
 Free RPC providers: [Alchemy](https://www.alchemy.com), [Infura](https://infura.io), [QuickNode](https://www.quicknode.com)
+
+### Switching Sui networks
+
+Sui now supports a network preset so you can switch between devnet and testnet without editing code:
+
+```bash
+export SUI_NETWORK=devnet   # or testnet, mainnet
+docker compose up -d
+```
+
+If you already have a fullnode URL, `SUI_RPC_URL` still wins over the preset. To scan more transactions from a checkpoint, set `SUI_MAX_CHECKPOINT_TXS=0` for all transactions or a higher limit if you want to cap the scan.
 
 ---
 
@@ -252,7 +263,7 @@ Set environment variables in the Railway dashboard:
 
 ```
 ETH_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
-SUI_RPC_URL=https://fullnode.mainnet.sui.io:443
+SUI_RPC_URL=https://fullnode.devnet.sui.io:443
 SOL_RPC_URL=https://api.mainnet-beta.solana.com
 ```
 
@@ -437,7 +448,7 @@ poll_interval = 12.0
 
 [sui]
 enabled       = true
-rpc_url       = "https://fullnode.mainnet.sui.io:443"
+rpc_url       = "https://fullnode.devnet.sui.io:443"
 poll_interval = 3.0
 
 [solana]
@@ -464,7 +475,7 @@ log_format     = "pretty"
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ETH_RPC_URL` | Ethereum JSON-RPC endpoint | `ethereum.publicnode.com` |
-| `SUI_RPC_URL` | Sui fullnode RPC | `fullnode.mainnet.sui.io` |
+| `SUI_RPC_URL` | Sui fullnode RPC | `fullnode.devnet.sui.io` |
 | `SOL_RPC_URL` | Solana RPC | `api.mainnet-beta.solana.com` |
 | `MIN_CONSENSUS_PEERS` | Min peers before quorum | `6` |
 | `CONSENSUS_THRESHOLD` | Quorum fraction | `0.67` |

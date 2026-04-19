@@ -6,13 +6,16 @@
   <title>Cross-Chain Oracle Network</title>
   <link rel="stylesheet" href="/static/style.css"/>
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.birds.min.js"></script>
 </head>
 <body>
+  <div id="vanta-bg" aria-hidden="true"></div>
   <nav class="navbar">
     <div class="nav-brand">⛓ Cross-Chain Oracle Network</div>
     <div class="nav-right">
       <span id="agent-id" class="badge badge-blue">—</span>
-      <span id="conn-status" class="badge badge-red">Disconnected</span>
+      <span id="conn-status" class="badge badge-red badge-live offline">Disconnected</span>
     </div>
   </nav>
 
@@ -49,7 +52,7 @@
 
     <!-- ── Chain States ───────────────────────────────────────────── -->
     <div class="section-title">Cross-Chain Oracle State</div>
-    <div class="cards-row">
+    <div class="cards-row chain-dock">
       <div class="chain-card" id="card-ethereum">
         <div class="chain-icon">Ξ</div>
         <div class="chain-name">Ethereum</div>
@@ -111,6 +114,33 @@
 
   </div>
 
+  <script>
+    window.addEventListener("load", () => {
+      if (!window.VANTA || !window.VANTA.BIRDS) return;
+
+      window.vantaEffect = window.VANTA.BIRDS({
+        el: "#vanta-bg",
+        mouseControls: true,
+        touchControls: true,
+        gyroControls: false,
+        minHeight: 200.00,
+        minWidth: 200.00,
+        scale: 1.00,
+        scaleMobile: 1.00,
+        backgroundColor: 0x000000,
+        color1: 0x085fff,
+        color2: 0x002bf5,
+        birdSize: 1.15,
+        wingSpan: 18.00,
+        speedLimit: 1.85,
+        separation: 36.00,
+        alignment: 24.00,
+        cohesion: 20.00,
+        quantity: 4.00,
+        backgroundAlpha: 1.00
+      });
+    });
+  </script>
   <script src="/static/app.js"></script>
 </body>
 </html>
